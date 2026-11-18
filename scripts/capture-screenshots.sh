@@ -50,13 +50,37 @@ def png_color(path: Path):
     return data[25]
 
 def flatten(path: Path):
-    if png_color(path) not in (4, 6):
+    """simctl screenshots are RGBA. App Store Connect rejects the alpha channel.
+
+    JPEG has no alpha, so the round trip is what actually clears color type 6.
+    The BMP round trip used before left the original PNG in place.
+    """
+    if not path.is_file():
+        raise RuntimeError(f"Cannot strip alpha: {path} was not written.")
+    color = png_color(path)
+    if color not in (4, 6):
+        print(f"{path.name} already has no alpha (color type {color})", flush=True)
         return
-    bmp = path.with_suffix(".bmp")
-    subprocess.run(["sips", "-s", "format", "bmp", str(path), "--out", str(bmp)], check=False)
-    if bmp.is_file():
-        subprocess.run(["sips", "-s", "format", "png", str(bmp), "--out", str(path)], check=False)
-        bmp.unlink(missing_ok=True)
+    jpg = path.with_suffix(".jpg")
+    to_jpeg = subprocess.run(
+        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "100", str(path), "--out", str(jpg)],
+        capture_output=True, text=True,
+    )
+    if to_jpeg.returncode != 0 or not jpg.is_file():
+        detail = (to_jpeg.stderr or to_jpeg.stdout or "sips produced no file").strip()
+        raise RuntimeError(f"Alpha strip failed while converting {path.name} to JPEG: {detail}")
+    to_png = subprocess.run(
+        ["sips", "-s", "format", "png", str(jpg), "--out", str(path)],
+        capture_output=True, text=True,
+    )
+    jpg.unlink(missing_ok=True)
+    if to_png.returncode != 0 or not path.is_file():
+        detail = (to_png.stderr or to_png.stdout or "sips produced no file").strip()
+        raise RuntimeError(f"Alpha strip failed while converting {path.name} back to PNG: {detail}")
+    after = png_color(path)
+    if after in (4, 6) or after is None:
+        raise RuntimeError(f"Alpha remained on {path} (color type {after}, {path.stat().st_size} bytes).")
+    print(f"Stripped alpha from {path.name}; color type {color} -> {after}", flush=True)
 
 def container_root(udid):
     return Path.home() / "Library/Developer/CoreSimulator/Devices" / udid / "data" / "Containers"
@@ -68,7 +92,7 @@ def clear_flags(udid):
     for flag in root_dir.glob("**/ZoixStoreScreenshots/*.flag"):
         flag.unlink()
 
-def watch(udid, slot, stop, seen):
+def watch(udid, slot, stop, seen, errors):
     while not stop.is_set():
         root_dir = container_root(udid)
         if root_dir.is_dir():
@@ -81,11 +105,25 @@ def watch(udid, slot, stop, seen):
                     ["xcrun", "simctl", "io", udid, "screenshot", str(out)],
                     check=False,
                 )
-                if proc.returncode == 0 and out.is_file() and out.stat().st_size > 1000:
+                if proc.returncode != 0 or not out.is_file() or out.stat().st_size <= 1000:
+                    print(
+                        f"simctl io screenshot did not write {out.name} "
+                        f"(exit {proc.returncode}, exists {out.is_file()})",
+                        flush=True,
+                    )
+                    continue
+                try:
                     flatten(out)
-                    (marker.parent / f"done-{tab}.flag").write_bytes(b"ok")
-                    seen.add(marker.name)
-                    print(f"Photographed {out.name}", flush=True)
+                except RuntimeError as error:
+                    errors.append(str(error))
+                    print(error, flush=True)
+                    continue
+                (marker.parent / f"done-{tab}.flag").write_bytes(b"ok")
+                seen.add(marker.name)
+                print(
+                    f"Photographed {out} ({out.stat().st_size} bytes, color type {png_color(out)})",
+                    flush=True,
+                )
         time.sleep(0.4)
 
 def test_device(udid, slot, suffix):
@@ -129,7 +167,59 @@ def collect_from_cache(udid, slot):
         source = max(matches, key=lambda path: path.stat().st_mtime)
         shutil.copyfile(source, target)
         flatten(target)
-        print(f"Copied {target.name} from the simulator cache")
+        print(f"Copied opaque screenshot {target.name} from the simulator cache", flush=True)
+
+def export_attachments(bundle: Path, slot: str):
+    """Pull XCTAttachment PNGs out of the xcresult. Names follow the test's attachment name."""
+    if not bundle.is_dir():
+        print(f"No xcresult at {bundle}; skipping attachment export.", flush=True)
+        return []
+    out = results / f"{slot}-attachments"
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir()
+    attempts = [
+        ["xcrun", "xcresulttool", "export", "attachments", "--path", str(bundle), "--output-path", str(out)],
+        ["xcrun", "xcresulttool", "--legacy", "export", "attachments", "--path", str(bundle), "--output-path", str(out)],
+    ]
+    for command in attempts:
+        proc = subprocess.run(command, capture_output=True, text=True)
+        pngs = list(out.rglob("*.png"))
+        print(
+            f"{' '.join(command[:4])}: exit {proc.returncode}, {len(pngs)} png attachment(s)",
+            flush=True,
+        )
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+            if detail:
+                print(f"  {detail[-1]}", flush=True)
+        if pngs:
+            return pngs
+    print(f"xcresulttool exported no PNGs from {bundle}.", flush=True)
+    return []
+
+def adopt_attachment(slot: str, png: Path):
+    stem = png.stem
+    for name in names:
+        if stem == name[:-4] or name[:-4] in stem:
+            target = staging / f"{slot}-{name}"
+            shutil.copyfile(png, target)
+            flatten(target)
+            print(f"Using attachment {png.name} as {target.name}", flush=True)
+            return
+    print(f"Attachment {png} did not match a tab name; left unused.", flush=True)
+
+def diagnose(directory: Path):
+    print(f"PNG files in {directory}:", flush=True)
+    if not directory.is_dir():
+        print("  directory does not exist", flush=True)
+        return
+    files = sorted(directory.glob("*.png"))
+    if not files:
+        print("  none", flush=True)
+        return
+    for path in files:
+        print(f"  {path.name} {path.stat().st_size} bytes color-type {png_color(path)}", flush=True)
 
 failures = []
 for device in devices:
@@ -156,42 +246,67 @@ for device in devices:
 
     stop = threading.Event()
     seen = set()
-    thread = threading.Thread(target=watch, args=(udid, slot, stop, seen), daemon=True)
+    errors = []
+    thread = threading.Thread(target=watch, args=(udid, slot, stop, seen, errors), daemon=True)
     thread.start()
     try:
         clear_flags(udid)
+        bundle = results / f"{slot}.xcresult"
         ok = test_device(udid, slot, "")
-        if not ok:
-            print(f"{slot} failed once. Retrying on the warm simulator.", flush=True)
+        have = all((staging / f"{slot}-{name}").is_file() for name in names)
+        if not ok and not have:
+            print(f"{slot} failed before any screenshot was saved. Retrying.", flush=True)
             clear_flags(udid)
             ok = test_device(udid, slot, "-retry")
+            bundle = results / f"{slot}-retry.xcresult"
+        elif not ok:
+            print(f"{slot} test reported a failure after screenshots were saved. Keeping those files.", flush=True)
     finally:
         stop.set()
         thread.join(timeout=5)
-    collect_from_cache(udid, slot)
+    for message in errors:
+        failures.append(f"{slot}: {message}")
+    for png in export_attachments(bundle, slot):
+        try:
+            adopt_attachment(slot, png)
+        except RuntimeError as error:
+            failures.append(f"{slot}: {error}")
+    try:
+        collect_from_cache(udid, slot)
+    except RuntimeError as error:
+        failures.append(f"{slot}: {error}")
     missing = [name for name in names if not (staging / f"{slot}-{name}").is_file()]
     if missing:
-        failures.append(f"{slot} ({device['name']}): missing {', '.join(missing)}")
+        diagnose(staging)
+        failures.append(f"{slot} ({device['name']}): simctl and xcresult export did not produce {', '.join(missing)}")
     run(["xcrun", "simctl", "shutdown", udid], check=False)
 
+expected = [f"{device['slot']}-{name}" for device in devices for name in names]
 if not failures:
+    print("Checking staged screenshot sizes.", flush=True)
+    diagnose(staging)
     check = subprocess.run([sys.executable, "scripts/screenshot_devices.py", "check", str(staging)])
-    if check.returncode == 0:
-        for path in staging.glob("*.png"):
-            shutil.copyfile(path, dest / path.name)
-        print(f"Captures are in {dest}")
-        sys.exit(0)
-    failures.append("captured files do not match App Store sizes")
+    if check.returncode != 0:
+        sys.exit(f"Size check rejected files in {staging}. They were not copied to {dest}.")
+    for name in expected:
+        source = staging / name
+        if not source.is_file():
+            sys.exit(f"Copy aborted: {source} disappeared between capture and copy.")
+        shutil.copyfile(source, dest / name)
+    missing_after_copy = [name for name in expected if not (dest / name).is_file()]
+    if missing_after_copy:
+        sys.exit(f"Copy to {dest} dropped {', '.join(missing_after_copy)}.")
+    print(f"Wrote {len(expected)} screenshots to {dest}")
+    sys.exit(0)
 
 print("Capture did not produce a full set:", file=sys.stderr)
 for item in failures:
     print(f"  {item}", file=sys.stderr)
-
+diagnose(staging)
+print(f"Committed directory {dest} was left unchanged.", file=sys.stderr)
 kept = subprocess.run([sys.executable, "scripts/screenshot_devices.py", "check", str(dest)])
 if kept.returncode == 0:
     print("Using the screenshots already in screenshots/en-US.")
     sys.exit(0)
-
-print("No valid screenshots are available to upload.", file=sys.stderr)
-sys.exit(1)
+sys.exit(f"No valid screenshots in {staging} or {dest}.")
 PY

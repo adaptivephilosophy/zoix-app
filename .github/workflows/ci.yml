@@ -32,6 +32,12 @@ jobs:
     name: Build and test (iOS Simulator)
     runs-on: macos-26
     timeout-minutes: 40
+    # Share the Mac simulator with the screenshot workflow. A job waiting
+    # here stays pending instead of sitting in the hosted-runner queue,
+    # which GitHub cancels after about 15 minutes when no runner is free.
+    concurrency:
+      group: macos-simulator
+      cancel-in-progress: false
     steps:
       - name: Check out
         uses: actions/checkout@v4
