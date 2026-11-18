@@ -91,10 +91,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app-store-screenshots
-          path: screenshots/captured
+          path: ${{ runner.temp }}/captured
 
       - name: Choose screenshots
-        run: python3 scripts/screenshot_devices.py resolve screenshots/captured screenshots/en-US
+        run: python3 scripts/screenshot_devices.py resolve "${{ runner.temp }}/captured" screenshots/en-US
 
       - name: Check published names
         run: python3 scripts/check-app-name.py | tee -a "$GITHUB_STEP_SUMMARY"
