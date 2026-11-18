@@ -8,14 +8,14 @@
 
 **Français :**
 
-- **Accueil.** [zoix.ai](https://zoix.ai) dans une vue web, avec une carte native « Mot du jour ». Les liens de don, de paiement, PayPal, Stripe et Cash App s'ouvrent dans Safari, pas dans la vue web.
+- **Accueil.** [zoix.ai](https://zoix.ai) dans une vue web. Retour, avance, et un bouton Accueil ramènent à zoix.ai. Un balayage depuis le bord gauche revient aussi en arrière. Retoucher l'onglet Accueil déjà choisi rouvre zoix.ai. Une ligne « Mot du jour » est sous la page. Les liens de don, de paiement, PayPal, Stripe et Cash App s'ouvrent dans Safari, pas dans la vue web.
 - **Nouvelles.** Liste native du fil `https://ap-notion-articles.vercel.app/api/articles` (le même fil que la page d'accueil, environ 532 pages : titre, étiquettes, dates, lien). Recherche par titre ou étiquette, filtre par étiquette, tri par dernière mise à jour. Une page s'ouvre dans un navigateur intégré. La dernière liste réussie reste sur l'appareil si le réseau manque.
 - **Mot du jour.** Mot français et sens anglais. Le fil public de Transparent Language est essayé en premier. Sinon, une liste enregistrée dans l'application est utilisée. Le mot de cette liste change à minuit, heure du Pacifique.
 - **Faire un don.** Ouvre `https://www.paypal.com/ncp/payment/7LP669JW6TBYW` dans Safari. L'application ne touche pas aux cartes ni aux paiements.
 
 **English:**
 
-- **Home.** [zoix.ai](https://zoix.ai) in a web view, plus a native word-of-the-day card. Donate, payment, PayPal, Stripe, and Cash App links open in Safari, not in the web view.
+- **Home.** [zoix.ai](https://zoix.ai) in a web view. Back, forward, and a Home button return to zoix.ai. A swipe from the left edge also goes back. Tapping the Home tab when it is already selected opens zoix.ai again. A one-line word of the day sits under the page. Donate, payment, PayPal, Stripe, and Cash App links open in Safari, not in the web view.
 - **Updates.** Native list from `https://ap-notion-articles.vercel.app/api/articles` (the same feed as the homepage, about 532 pages: title, tags, dates, link). Search by title or tag, filter by tag, sort by last updated. A page opens in an in-app browser. The last successful list stays on the device when the network fails.
 - **Word of the day.** A French word and an English meaning. The public Transparent Language feed is tried first. Otherwise a list saved in the app is used. That saved word changes at midnight Pacific Time.
 - **Donate.** Opens `https://www.paypal.com/ncp/payment/7LP669JW6TBYW` in Safari. The app does not handle cards or payments.

@@ -10,10 +10,11 @@ struct RootView: View {
     @State private var tab: AppTab = .home
     @State private var articles = ArticleStore()
     @State private var words = WordOfTheDayStore()
+    @StateObject private var browser = HomeBrowser()
 
     var body: some View {
         TabView(selection: $tab) {
-            HomeView(words: words, tab: $tab)
+            HomeView(browser: browser, words: words, tab: $tab)
                 .toolbar(.hidden, for: .tabBar)
                 .tag(AppTab.home)
             UpdatesView(store: articles)
@@ -25,7 +26,7 @@ struct RootView: View {
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ZoixTabBar(tab: $tab)
+            ZoixTabBar(tab: $tab, browser: browser)
         }
         .tint(ZoixPalette.primaryText)
         .task { await words.load() }
@@ -37,6 +38,7 @@ struct RootView: View {
 /// Unselected labels are navy on white, and ivory on the navy field.
 private struct ZoixTabBar: View {
     @Binding var tab: AppTab
+    var browser: HomeBrowser
 
     var body: some View {
         HStack(spacing: 0) {
@@ -62,7 +64,11 @@ private struct ZoixTabBar: View {
     private func item(_ value: AppTab, _ title: String, _ symbol: String) -> some View {
         let selected = tab == value
         return Button {
-            tab = value
+            if selected && value == .home {
+                browser.goHome()
+            } else {
+                tab = value
+            }
         } label: {
             VStack(spacing: 2) {
                 Image(systemName: symbol)
@@ -85,5 +91,6 @@ private struct ZoixTabBar: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint(selected && value == .home ? "Returns to zoix.ai" : "")
     }
 }
