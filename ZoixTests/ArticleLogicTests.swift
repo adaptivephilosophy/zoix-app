@@ -60,8 +60,12 @@ final class ArticleLogicTests: XCTestCase {
         let oldest = ArticleQuery(newestFirst: false).filtered(articles).map(\.title)
         XCTAssertEqual(oldest, ["Older", "Alpha", "Newer"])
 
-        let byTitle = ArticleQuery(searchText: "  new  ").filtered(articles).map(\.title)
+        let byTitle = ArticleQuery(searchText: "  newer  ").filtered(articles).map(\.title)
         XCTAssertEqual(byTitle, ["Newer"])
+
+        // "new" matches the title Newer and the tag News on Alpha.
+        let byTitleOrTag = ArticleQuery(searchText: "new").filtered(articles).map(\.title)
+        XCTAssertEqual(byTitleOrTag, ["Alpha", "Newer"])
 
         let byTag = ArticleQuery(searchText: "phil").filtered(articles).map(\.title)
         XCTAssertEqual(byTag, ["Older"])
