@@ -86,6 +86,14 @@ final class ArticleLogicTests: XCTestCase {
         XCTAssertEqual(AppLinks.homePage.absoluteString, "https://zoix.ai")
         XCTAssertEqual(AppLinks.articlesFeed.absoluteString, "https://ap-notion-articles.vercel.app/api/articles")
         XCTAssertEqual(AppLinks.givingPage.absoluteString, "https://www.paypal.com/ncp/payment/7LP669JW6TBYW")
+        XCTAssertEqual(
+            AppLinks.privacyPolicy.absoluteString,
+            "https://adaptivephilosophy.github.io/zoix-app/privacy.html"
+        )
+        XCTAssertEqual(
+            AppLinks.supportPage.absoluteString,
+            "https://adaptivephilosophy.github.io/zoix-app/support.html"
+        )
         XCTAssertEqual(ExternalLinkPolicy.decision(for: AppLinks.givingPage), .openOutsideApp)
         XCTAssertEqual(ExternalLinkPolicy.decision(for: AppLinks.homePage), .loadInWebView)
     }

@@ -4,6 +4,8 @@ Zoix · Adaptive Philosophy Foundation · Olympia, Washington
 
 Date / Date : 18 novembre 2026 / 18 November 2026
 
+Page publique / Public page : <https://adaptivephilosophy.github.io/zoix-app/privacy.html>
+
 ## Français
 
 Zoix est une application iOS gratuite de l'Adaptive Philosophy Foundation, à Olympia, dans l'État de Washington. Cette politique concerne l'application Zoix (identifiant `ai.zoix.app`).

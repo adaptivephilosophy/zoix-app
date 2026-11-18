@@ -1,0 +1,36 @@
+body {
+  margin: 0;
+  background: #06182c;
+  color: #fdfdce;
+  font-family: Georgia, "Iowan Old Style", Palatino, serif;
+  line-height: 1.55;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+a {
+  color: #1bbce3;
+}
+
+h1 {
+  font-size: 1.8rem;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 2rem;
+}
+
+nav {
+  margin: 1rem 0 2rem;
+}
+
+nav a {
+  margin-right: 1rem;
+}

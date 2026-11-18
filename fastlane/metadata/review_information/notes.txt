@@ -1,0 +1,13 @@
+This is the first release of Zoix, version 1.0.0. There is no account and no demo password.
+
+Home is a web view of https://zoix.ai. Back, forward, and Home stay in that view. Links to PayPal, Stripe, Cash App, and other giving pages open in Safari. The app does not process payments and does not issue tax receipts. The publisher is the Adaptive Philosophy Foundation, a Washington nonprofit corporation.
+
+Updates loads the public article list at https://ap-notion-articles.vercel.app/api/articles and opens a chosen article in an in-app browser.
+
+Mot du jour requests Transparent Language's public widget feed at https://wotd.transparent.com/rss/fr-widget.xml. That feed is published for display. If it does not answer, the app shows a word from a short list included in the app.
+
+The app uses only standard HTTPS. ITSAppUsesNonExemptEncryption is false. There is no advertising identifier and no analytics kit.
+
+The age-rating answers record the embedded web view as unrestricted web access. They also record infrequent medical, drug, and mature-theme references, because some titles in the public reading list name those subjects. The app does not depict them and does not give medical advice.
+
+Contact: DanBoice@adaptivephilosophy.foundation

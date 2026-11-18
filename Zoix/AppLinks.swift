@@ -25,8 +25,11 @@ enum AppLinks {
     /// Giving page opened in Safari, outside the app (App Store guideline 3.2.2).
     static let givingPage = URL(string: "https://www.paypal.com/ncp/payment/7LP669JW6TBYW")!
 
-    /// Privacy policy committed in this repository. Used on the App Store listing.
-    static let privacyPolicy = URL(string: "https://github.com/adaptivephilosophy/zoix-app/blob/main/docs/privacy.md")!
+    /// Public privacy policy. GitHub Pages serves docs/privacy.html.
+    static let privacyPolicy = URL(string: "https://adaptivephilosophy.github.io/zoix-app/privacy.html")!
+
+    /// Public support page. GitHub Pages serves docs/support.html.
+    static let supportPage = URL(string: "https://adaptivephilosophy.github.io/zoix-app/support.html")!
 
     static let contactEmail = "DanBoice@adaptivephilosophy.foundation"
 }

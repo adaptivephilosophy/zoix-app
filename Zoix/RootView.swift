@@ -29,8 +29,14 @@ struct RootView: View {
             ZoixTabBar(tab: $tab, browser: browser)
         }
         .tint(ZoixPalette.primaryText)
+        .preferredColorScheme(screenshotDark ? .dark : nil)
         .task { await words.load() }
         .task { await articles.loadCachedThenRefresh() }
+    }
+
+    /// Screenshot runs pass this argument so the navy field is showing.
+    private var screenshotDark: Bool {
+        ProcessInfo.processInfo.arguments.contains("-ZoixScreenshotDark")
     }
 }
 
@@ -42,9 +48,9 @@ private struct ZoixTabBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            item(.home, "Home", "house")
-            item(.updates, "Updates", "newspaper")
-            item(.word, "Mot du jour", "text.book.closed")
+            item(.home, "Home", "house", "tab-home")
+            item(.updates, "Updates", "newspaper", "tab-updates")
+            item(.word, "Mot du jour", "text.book.closed", "tab-word")
         }
         .padding(.horizontal, 8)
         .padding(.top, 6)
@@ -61,7 +67,7 @@ private struct ZoixTabBar: View {
         }
     }
 
-    private func item(_ value: AppTab, _ title: String, _ symbol: String) -> some View {
+    private func item(_ value: AppTab, _ title: String, _ symbol: String, _ identifier: String) -> some View {
         let selected = tab == value
         return Button {
             if selected && value == .home {
@@ -90,6 +96,7 @@ private struct ZoixTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .accessibilityHint(selected && value == .home ? "Returns to zoix.ai" : "")
     }
