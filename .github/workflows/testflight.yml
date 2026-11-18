@@ -1,0 +1,133 @@
+name: TestFlight
+
+# Manual, or on a version tag. Does not run on pull requests.
+# Signing uses the App Store Connect API key already stored in repo secrets.
+# No certificate or provisioning profile is stored in the repo.
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload the signed build to TestFlight. Turn this off to stop after a signed export."
+        type: boolean
+        default: true
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  archive-and-upload:
+    name: Archive and upload
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Require Apple Team ID
+        run: |
+          set -euo pipefail
+          TEAM="$(printf '%s' "${APPLE_TEAM_ID:-}" | tr -d '[:space:]')"
+          if [ -z "$TEAM" ]; then
+            echo "GitHub Actions variable APPLE_TEAM_ID is not set."
+            echo "Add the 10-character Team ID under Settings → Secrets and variables → Actions → Variables."
+            echo "This workflow does not guess a team."
+            exit 1
+          fi
+          if [ "${#TEAM}" -ne 10 ]; then
+            echo "APPLE_TEAM_ID must be exactly 10 characters. Length is ${#TEAM}."
+            exit 1
+          fi
+          case "$TEAM" in
+            *[!A-Za-z0-9]*)
+              echo "APPLE_TEAM_ID must contain only letters and digits."
+              exit 1
+              ;;
+          esac
+          echo "APPLE_TEAM_ID=$TEAM" >> "$GITHUB_ENV"
+          echo "Using Apple Team ID ${TEAM}."
+
+      - name: Build number
+        run: |
+          set -euo pipefail
+          # github.run_number increases every run. The attempt keeps a re-run
+          # from colliding with the build number Apple already accepted.
+          BUILD_NUMBER=$(( GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT ))
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$GITHUB_ENV"
+          echo "Build number ${BUILD_NUMBER} (workflow run ${GITHUB_RUN_NUMBER}, attempt ${GITHUB_RUN_ATTEMPT})."
+
+      - name: Install App Store Connect API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: python3 scripts/install-asc-key.py
+
+      - name: Write export options
+        run: python3 scripts/write-export-options.py
+
+      - name: Archive
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild archive \
+            -project Zoix.xcodeproj \
+            -scheme Zoix \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "${RUNNER_TEMP}/Zoix.xcarchive" \
+            -derivedDataPath "${RUNNER_TEMP}/DerivedData" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${ASC_KEY_PATH}" \
+            -authenticationKeyID "${ASC_KEY_ID}" \
+            -authenticationKeyIssuerID "${ASC_ISSUER_ID}" \
+            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=YES \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}"
+
+      - name: Export IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild -exportArchive \
+            -archivePath "${RUNNER_TEMP}/Zoix.xcarchive" \
+            -exportPath "${RUNNER_TEMP}/export" \
+            -exportOptionsPlist "${RUNNER_TEMP}/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${ASC_KEY_PATH}" \
+            -authenticationKeyID "${ASC_KEY_ID}" \
+            -authenticationKeyIssuerID "${ASC_ISSUER_ID}"
+          find "${RUNNER_TEMP}/export" -name '*.ipa' -print
+
+      - name: Upload to TestFlight
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.upload == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          IPA="$(/usr/bin/find "${RUNNER_TEMP}/export" -name '*.ipa' -print -quit)"
+          if [ -z "$IPA" ]; then
+            echo "Export did not produce an IPA."
+            exit 1
+          fi
+          echo "Uploading $(basename "$IPA") as build ${BUILD_NUMBER}."
+          xcrun altool --upload-app \
+            --file "$IPA" \
+            --type ios \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf "${RUNNER_TEMP}/private_keys"
