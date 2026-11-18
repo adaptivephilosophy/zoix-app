@@ -23,6 +23,11 @@ jobs:
     name: Capture App Store screenshots
     runs-on: macos-26
     timeout-minutes: 90
+    # Same group as CI's simulator job, so the two do not both wait on a
+    # hosted macOS runner. The second stays pending until the first finishes.
+    concurrency:
+      group: macos-simulator
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:

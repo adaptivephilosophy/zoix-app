@@ -58,7 +58,8 @@ final class StoreScreenshotTests: XCTestCase {
         wait(for: [expectation], timeout: seconds + 2)
     }
 
-    /// Asks the host to photograph the simulator, then falls back to XCUITest.
+    /// The host photographs the simulator first. The XCUITest PNG is then saved
+    /// as an attachment for xcresulttool. Either file is enough.
     private func capture(_ name: String) throws {
         let ready = outputDirectory.appendingPathComponent("ready-\(name).flag")
         try Data("ready".utf8).write(to: ready, options: .atomic)
@@ -67,10 +68,7 @@ final class StoreScreenshotTests: XCTestCase {
         while !FileManager.default.fileExists(atPath: done.path), Date().timeIntervalSince(start) < 20 {
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         }
-        if FileManager.default.fileExists(atPath: done.path) {
-            return
-        }
-        try saveWithRetry(name)
+        try? saveWithRetry(name)
     }
 
     private func saveWithRetry(_ name: String) throws {
@@ -84,7 +82,7 @@ final class StoreScreenshotTests: XCTestCase {
                 settle(1)
             }
         }
-        XCTFail("Failed to get screenshot for \(name): \(last)")
+        throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "Failed to get screenshot for \(name): \(last)"])
     }
 
     private func writeXCUIScreenshot(_ name: String) throws {
