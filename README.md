@@ -72,7 +72,7 @@ Il archive avec `xcodebuild -allowProvisioningUpdates` et la clé d'API App Stor
 
 Secrets déjà prévus : `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (le texte complet du fichier `.p8`, avec les lignes BEGIN et END).
 
-Variable à créer (ce n'est pas un secret) : `APPLE_TEAM_ID`, les 10 caractères de l'équipe Apple. Le workflow ne devine pas cette valeur.
+`APPLE_TEAM_ID` : les 10 caractères de l'équipe Apple, en variable ou en secret du dépôt. Les deux conviennent. Le workflow ne devine pas cette valeur et ne l'écrit pas dans le journal.
 
 Le numéro de build est `numéro d'exécution × 100 + tentative`. Une nouvelle exécution obtient un numéro plus grand. Relancer la même exécution ne réutilise pas un numéro déjà accepté par Apple.
 
@@ -84,7 +84,7 @@ It archives with `xcodebuild -allowProvisioningUpdates` and the App Store Connec
 
 Secrets that are already expected: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the full `.p8` text, including the BEGIN and END lines).
 
-Variable to create (it is not a secret): `APPLE_TEAM_ID`, the 10-character Apple Team ID. The workflow does not guess it.
+`APPLE_TEAM_ID`: the 10-character Apple Team ID, as a repository variable or a repository secret. Either one works. The workflow does not guess it and does not print it in the log.
 
 The build number is `run number × 100 + attempt`. A new run gets a higher number. Re-running the same run does not reuse a number Apple already accepted.
 
@@ -95,7 +95,7 @@ To check signing without uploading, run the workflow by hand and turn **upload**
 **Français :** Le premier envoi TestFlight échoue tant que ces étapes ne sont pas faites. Le workflow ne les invente pas.
 
 1. Le compte Apple Developer de l'équipe qui publie Zoix est actif. Le Account Holder a accepté le contrat Apple Developer en cours.
-2. Dans le dépôt GitHub : Settings → Secrets and variables → Actions → Variables. Créer `APPLE_TEAM_ID` avec les 10 caractères indiqués sur [developer.apple.com/account](https://developer.apple.com/account) (Membership details).
+2. Dans le dépôt GitHub : Settings → Secrets and variables → Actions. Créer `APPLE_TEAM_ID` avec les 10 caractères indiqués sur [developer.apple.com/account](https://developer.apple.com/account) (Membership details). Une variable ou un secret convient. Le secret déjà ajouté suffit.
 3. Vérifier que `ASC_KEY_ID`, `ASC_ISSUER_ID` et `ASC_KEY_P8` sont présents et non expirés. La clé a le rôle **Admin** (accès aux certificats et aux profils). Un rôle App Manager peut envoyer un build, mais ne peut en général pas créer le certificat de distribution. La signature dans le nuage a besoin de ce droit. `ASC_KEY_P8` est le texte PEM du fichier `.p8`, pas une version encodée sans les lignes BEGIN / END.
 4. Enregistrer l'App ID explicite `ai.zoix.app`, sans capacité supplémentaire (pas de notifications, pas d'achats intégrés, pas de domaines associés). La première archive peut le créer si la clé y est autorisée. Sinon, le créer dans Certificates, Identifiers & Profiles.
 5. Dans App Store Connect, créer la fiche de l'app : nom **Zoix**, bundle ID **ai.zoix.app**, SKU **zoix-ios**, langue principale anglais. L'envoi est refusé si cette fiche n'existe pas. Cette création reste manuelle.
@@ -110,7 +110,7 @@ Contact public, si la fiche en a besoin : DanBoice@adaptivephilosophy.foundation
 **English:** The first TestFlight upload fails until these steps are done. The workflow does not invent them.
 
 1. The Apple Developer account for the team that will ship Zoix is active. The Account Holder has accepted the current Apple Developer Program License Agreement.
-2. In the GitHub repository: Settings → Secrets and variables → Actions → Variables. Create `APPLE_TEAM_ID` with the 10 characters shown at [developer.apple.com/account](https://developer.apple.com/account) (Membership details).
+2. In the GitHub repository: Settings → Secrets and variables → Actions. Create `APPLE_TEAM_ID` with the 10 characters shown at [developer.apple.com/account](https://developer.apple.com/account) (Membership details). A variable or a secret works. The secret that is already there is enough.
 3. Confirm `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_KEY_P8` are present and not expired. The key needs the **Admin** role (access to certificates and profiles). An App Manager key can upload a build, but usually cannot create the distribution certificate. Cloud signing needs that access. `ASC_KEY_P8` is the PEM text of the `.p8` file, not a copy that dropped the BEGIN / END lines.
 4. Register the explicit App ID `ai.zoix.app`, with no extra capabilities (no push, no in-app purchase, no associated domains). The first archive may create it if the key is allowed to. Otherwise create it in Certificates, Identifiers & Profiles.
 5. In App Store Connect, create the app record: name **Zoix**, bundle ID **ai.zoix.app**, SKU **zoix-ios**, primary language English. The upload is rejected if this record does not exist. Creating it stays a manual step.

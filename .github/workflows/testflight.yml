@@ -23,7 +23,8 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 90
     env:
-      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      # A repository variable wins when both are set. A secret alone is enough.
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -33,8 +34,8 @@ jobs:
           set -euo pipefail
           TEAM="$(printf '%s' "${APPLE_TEAM_ID:-}" | tr -d '[:space:]')"
           if [ -z "$TEAM" ]; then
-            echo "GitHub Actions variable APPLE_TEAM_ID is not set."
-            echo "Add the 10-character Team ID under Settings → Secrets and variables → Actions → Variables."
+            echo "GitHub Actions variable or secret APPLE_TEAM_ID is not set."
+            echo "Add the 10-character Team ID under Settings → Secrets and variables → Actions, as a variable or as a secret."
             echo "This workflow does not guess a team."
             exit 1
           fi
@@ -48,8 +49,9 @@ jobs:
               exit 1
               ;;
           esac
+          echo "::add-mask::$TEAM"
           echo "APPLE_TEAM_ID=$TEAM" >> "$GITHUB_ENV"
-          echo "Using Apple Team ID ${TEAM}."
+          echo "APPLE_TEAM_ID is set."
 
       - name: Build number
         run: |
