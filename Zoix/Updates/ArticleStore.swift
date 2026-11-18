@@ -26,6 +26,14 @@ final class ArticleStore {
         self.feedURL = feedURL
     }
 
+    /// Fills the list for screenshots. Does not touch the network or the cache.
+    func showSample() {
+        articles = ScreenshotSample.articles()
+        generatedAt = articles.first?.lastEdited
+        status = .loaded
+        isLoading = false
+    }
+
     func loadCachedThenRefresh() async {
         if articles.isEmpty, let cached = try? cache.load(), !cached.items.isEmpty {
             articles = cached.items

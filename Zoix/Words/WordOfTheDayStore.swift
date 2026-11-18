@@ -50,6 +50,12 @@ final class WordOfTheDayStore {
         self.word = BundledFrenchWords.word(on: Date())
     }
 
+    /// Shows a bundled word for screenshots. Does not request the live feed.
+    func showSample(now: Date = Date()) {
+        word = BundledFrenchWords.word(on: now)
+        isLoading = false
+    }
+
     /// Shows today's cached live word when one exists. Otherwise shows the bundled word,
     /// then replaces it if the public feed answers.
     func load(now: Date = Date(), force: Bool = false) async {

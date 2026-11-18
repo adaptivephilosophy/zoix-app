@@ -4,6 +4,7 @@ PREFERRED_NAME = "Zoix.ai"
 FALLBACK_NAME = "Zoix.ai - Adaptive Philosophy"
 BUNDLE_ID = "ai.zoix.app"
 VERSION = "1.0.0"
+STORE = {}
 
 platform :ios do
   desc "Upload metadata and screenshots for ai.zoix.app. Submits only when SUBMIT=true."
@@ -21,39 +22,52 @@ platform :ios do
     app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
     UI.user_error!("No App Store Connect app uses bundle ID #{BUNDLE_ID}. Create that record, then run this lane again.") if app.nil?
 
-    begin
-      app.update(attributes: {
-        content_rights_declaration: Spaceship::ConnectAPI::App::ContentRightsDeclaration::USES_THIRD_PARTY_CONTENT
-      })
-      summary("Content rights: third-party content, for the public word-of-the-day feed.")
-    rescue StandardError => error
-      UI.important("Content rights were not changed (#{safe_error(error)}). Confirm them before submit.")
-    end
+    STORE.replace({
+      price_ok: false,
+      availability_ok: false,
+      encryption_ok: false,
+      privacy_ok: false,
+      review_phone_present: false,
+      agreements_blocked: false
+    })
+
+    set_content_rights(app)
+    set_free_price(app)
+    set_all_territories(app)
 
     screenshots = Dir[File.expand_path("../screenshots/en-US/*.png", __dir__)]
-    UI.user_error!("screenshots/en-US has no PNG files.") if screenshots.empty?
-    summary("Screenshots: #{screenshots.length}")
+    summary("Screenshots ready: #{screenshots.length}")
 
     name = choose_store_name(app)
     summary("Store name: #{name}")
 
     build_number = latest_valid_build_number(app)
-    summary(build_number ? "Build attached: #{build_number}" : "Build attached: none")
-    summary("Price and country availability are not changed by this lane.")
-    summary("The App Privacy nutrition label is not published by this lane.")
+    summary(build_number ? "Processed build: #{build_number}" : "Processed build: none")
+    mark_build_exempt(app, build_number)
 
     submit = ENV["SUBMIT"] == "true"
     summary("Submit for review: #{submit}")
 
-    begin
-      upload(api_key, build_number, submit)
-    rescue StandardError => error
-      raise unless name_taken?(error) && store_name_file.strip != FALLBACK_NAME
+    upload_listing(api_key, build_number, false)
+    set_review_contact(app)
+    try_publish_privacy(app)
 
-      summary("Zoix.ai is not available. Using #{FALLBACK_NAME}.")
-      File.write(store_name_path, "#{FALLBACK_NAME}\n")
-      upload(api_key, build_number, submit)
-      summary("Store name: #{FALLBACK_NAME}")
+    summary("Agreements: confirm the Free Apps agreement in App Store Connect. This key cannot read that screen.")
+    blockers = submission_blockers(build_number, screenshots)
+    if blockers.empty?
+      summary("Nothing in this preflight blocks submission.")
+    else
+      summary(submit ? "Submit is missing:" : "Still needs a person before submit:")
+      blockers.each { |item| summary(item) }
+    end
+
+    if submit && !blockers.empty?
+      UI.user_error!("Not submitted. App Store Connect is still missing:\n- #{blockers.join("\n- ")}")
+    end
+
+    if submit
+      upload_listing(api_key, build_number, true)
+      summary("Submitted version #{VERSION} for review. Release stays manual.")
     end
   end
 end
@@ -63,6 +77,27 @@ def key_material_present?
     !ENV["ASC_ISSUER_ID"].to_s.empty? &&
     !ENV["ASC_KEY_PATH"].to_s.empty? &&
     File.file?(ENV["ASC_KEY_PATH"])
+end
+
+def upload_listing(api_key, build_number, submit)
+  begin
+    upload(api_key, build_number, submit)
+  rescue StandardError => error
+    unless !submit && name_taken?(error) && store_name_file.strip != FALLBACK_NAME
+      reason = format_asc_error(error)
+      summary(submit ? "Submission failed: #{reason}" : "Upload failed: #{reason}")
+      UI.user_error!(submit ? "Submission failed: #{reason}" : "Upload failed: #{reason}")
+    end
+    summary("Zoix.ai is not available. Using #{FALLBACK_NAME}.")
+    File.write(store_name_path, "#{FALLBACK_NAME}\n")
+    begin
+      upload(api_key, build_number, submit)
+    rescue StandardError => retry_error
+      reason = format_asc_error(retry_error)
+      summary("Upload failed after the name fallback: #{reason}")
+      UI.user_error!("Upload failed after the name fallback: #{reason}")
+    end
+  end
 end
 
 def upload(api_key, build_number, submit)
@@ -175,6 +210,239 @@ end
 
 def store_name_file
   File.read(store_name_path)
+end
+
+def set_content_rights(app)
+  app.update(attributes: {
+    content_rights_declaration: Spaceship::ConnectAPI::App::ContentRightsDeclaration::USES_THIRD_PARTY_CONTENT
+  })
+  summary("Content rights: third-party content, for the public word-of-the-day feed.")
+rescue StandardError => error
+  summary("Content rights were not changed (#{format_asc_error(error)}).")
+end
+
+def set_free_price(app)
+  point_id = free_price_point_id(app)
+  if point_id.nil?
+    summary("Price: could not find the free USA price point.")
+    return
+  end
+  asc_post("v1/appPriceSchedules", {
+    data: {
+      type: "appPriceSchedules",
+      relationships: {
+        app: { data: { type: "apps", id: app.id } },
+        baseTerritory: { data: { type: "territories", id: "USA" } },
+        manualPrices: { data: [{ type: "appPrices", id: "${price0}" }] }
+      }
+    },
+    included: [
+      {
+        type: "appPrices",
+        id: "${price0}",
+        attributes: { startDate: nil },
+        relationships: {
+          appPricePoint: { data: { type: "appPricePoints", id: point_id } }
+        }
+      }
+    ]
+  })
+  STORE[:price_ok] = true
+  summary("Price: Free, based on the USA price, which the other territories follow.")
+rescue StandardError => error
+  text = format_asc_error(error)
+  if text.match?(/already|STATE_ERROR|ENTITY_ERROR.ATTRIBUTE.INVALID/i) && free_price_already?(app)
+    STORE[:price_ok] = true
+    summary("Price: already Free.")
+  else
+    summary("Price was not changed (#{text}).")
+  end
+end
+
+def free_price_point_id(app)
+  path = "v1/apps/#{app.id}/appPricePoints?filter[territory]=USA&limit=200"
+  8.times do
+    body = response_body(asc_get(path))
+    Array(body["data"]).each do |row|
+      price = row.dig("attributes", "customerPrice").to_s
+      return row["id"] if ["0", "0.0", "0.00"].include?(price)
+    end
+    nxt = body.dig("links", "next").to_s
+    break if nxt.empty?
+
+    path = nxt.sub("https://api.appstoreconnect.apple.com/", "")
+  end
+  nil
+end
+
+def free_price_already?(app)
+  !free_price_point_id(app).nil? && current_customer_price(app) == "0"
+rescue StandardError
+  false
+end
+
+def current_customer_price(app)
+  body = response_body(asc_get("v1/apps/#{app.id}/appPriceSchedule?include=manualPrices,baseTerritory"))
+  included = Array(body["included"])
+  point = included.find { |row| row["type"] == "appPricePoints" }
+  return nil if point.nil?
+
+  point.dig("attributes", "customerPrice").to_s.split(".").first
+end
+
+def set_all_territories(app)
+  ids = all_territory_ids
+  UI.user_error!("The territory list was empty.") if ids.empty?
+  app.update(attributes: { available_in_new_territories: true }, territory_ids: ids)
+  STORE[:availability_ok] = true
+  summary("Availability: #{ids.length} territories, including territories added later.")
+rescue StandardError => error
+  summary("Availability was not changed (#{format_asc_error(error)}).")
+end
+
+def all_territory_ids
+  ids = []
+  path = "v1/territories?limit=200"
+  4.times do
+    body = response_body(asc_get(path))
+    ids.concat(Array(body["data"]).map { |row| row["id"] }.compact)
+    nxt = body.dig("links", "next").to_s
+    break if nxt.empty?
+
+    path = nxt.sub("https://api.appstoreconnect.apple.com/", "")
+  end
+  ids.uniq
+end
+
+def mark_build_exempt(app, build_number)
+  return if build_number.nil?
+
+  build = app.get_builds(includes: "preReleaseVersion", sort: "-uploadedDate", limit: 30).find do |item|
+    item.respond_to?(:version) && item.version.to_s == build_number
+  end
+  return if build.nil?
+
+  asc_patch("v1/builds/#{build.id}", {
+    data: {
+      type: "builds",
+      id: build.id,
+      attributes: { usesNonExemptEncryption: false }
+    }
+  })
+  STORE[:encryption_ok] = true
+  summary("Export compliance: build #{build_number} is marked as exempt encryption only. Info.plist already sets ITSAppUsesNonExemptEncryption to false.")
+rescue StandardError => error
+  summary("Export compliance was not changed on the build (#{format_asc_error(error)}). Info.plist already sets ITSAppUsesNonExemptEncryption to false.")
+end
+
+def set_review_contact(app)
+  version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+  if version.nil?
+    summary("Review contact: no editable version yet.")
+    return
+  end
+  response = Spaceship::ConnectAPI.get_app_store_review_detail(app_store_version_id: version.id)
+  detail = response.respond_to?(:to_models) ? response.to_models.first : nil
+  phone = review_phone(detail)
+  STORE[:review_phone_present] = !phone.to_s.strip.empty?
+  attributes = {
+    contactFirstName: "Daniel",
+    contactLastName: "Boice",
+    contactEmail: "DanBoice@adaptivephilosophy.foundation"
+  }
+  if detail
+    Spaceship::ConnectAPI.patch_app_store_review_detail(app_store_review_detail_id: detail.id, attributes: attributes)
+  else
+    Spaceship::ConnectAPI.post_app_store_review_detail(app_store_version_id: version.id, attributes: attributes)
+  end
+  if STORE[:review_phone_present]
+    summary("Review contact: Daniel Boice, DanBoice@adaptivephilosophy.foundation. The phone number already on the record was left as it is.")
+  else
+    summary("Review contact: Daniel Boice, DanBoice@adaptivephilosophy.foundation. No phone number is known, so none was written.")
+  end
+rescue StandardError => error
+  summary("Review contact was not changed (#{format_asc_error(error)}).")
+end
+
+def review_phone(detail)
+  return nil if detail.nil?
+  return detail.contact_phone if detail.respond_to?(:contact_phone)
+
+  nil
+end
+
+def try_publish_privacy(app)
+  usages = Spaceship::ConnectAPI.get_app_data_usages(app_id: app.id)
+  usage_rows = usages.respond_to?(:to_models) ? usages.to_models : []
+  unless usage_rows.empty?
+    summary("App Privacy: data types are already declared. This lane does not change them. Confirm Data Not Collected in the web UI if that is still the right answer.")
+    return
+  end
+  state = Spaceship::ConnectAPI.get_app_data_usages_publish_state(app_id: app.id)
+  model = state.respond_to?(:to_models) ? state.to_models.first : nil
+  if model && model.respond_to?(:published) && model.published == true
+    STORE[:privacy_ok] = true
+    summary("App Privacy: published with no collected data types.")
+    return
+  end
+  if model
+    Spaceship::ConnectAPI.patch_app_data_usages_publish_state(
+      app_data_usages_publish_state_id: model.id,
+      published: true
+    )
+    STORE[:privacy_ok] = true
+    summary("App Privacy: published Data Not Collected.")
+  else
+    summary("App Privacy: the publish state could not be read.")
+  end
+rescue StandardError => error
+  summary("App Privacy was not published (#{format_asc_error(error)}). Answer Data Not Collected in the web UI.")
+end
+
+def submission_blockers(build_number, screenshots)
+  missing = []
+  missing << "No processed build for #{VERSION} is available to attach." if build_number.nil?
+  missing << "Screenshots are missing or are not the required sizes." if screenshots.length < 9
+  missing << "Price is not confirmed Free." unless STORE[:price_ok]
+  missing << "Availability across territories is not confirmed." unless STORE[:availability_ok]
+  missing << "App Privacy is not published. Answer Data Not Collected in App Store Connect." unless STORE[:privacy_ok]
+  missing << "Review contact phone is not set. Add a phone number in App Review Information. None is stored in the repo." unless STORE[:review_phone_present]
+  missing << "The Free Apps agreement is not accepted." if STORE[:agreements_blocked]
+  missing
+end
+
+def asc_client
+  client = Spaceship::ConnectAPI.client
+  return client.tunes_request_client if client.respond_to?(:tunes_request_client)
+
+  client
+end
+
+def asc_get(path)
+  asc_client.get(path)
+end
+
+def asc_post(path, body)
+  asc_client.post(path, body)
+end
+
+def asc_patch(path, body)
+  asc_client.patch(path, body)
+end
+
+def response_body(response)
+  return response if response.is_a?(Hash)
+  return response.body if response.respond_to?(:body) && response.body.is_a?(Hash)
+
+  {}
+end
+
+def format_asc_error(error)
+  text = "#{error.class}: #{error.message}"
+  text = text.gsub(/-----BEGIN [\s\S]*?-----END [^\n]+/, "[redacted]")
+  text = text.gsub(/PRIVATE KEY/, "KEY")
+  STORE[:agreements_blocked] = true if text.match?(/AGREEMENT/i)
+  text.strip[0, 1500]
 end
 
 def summary(line)

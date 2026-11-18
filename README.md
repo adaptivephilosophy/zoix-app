@@ -94,7 +94,7 @@ To check signing without uploading, run the workflow by hand and turn **upload**
 
 **Français :** Le workflow [`.github/workflows/appstore.yml`](.github/workflows/appstore.yml) se lance à la main. Il ne part pas sur une pull request. Par défaut, il n'envoie pas l'app en revue.
 
-Il prend les captures sur le simulateur : iPhone grand écran (6,9 pouces), iPhone avec Dynamic Island de taille moyenne, et iPad 13 pouces. L'app reste universelle. Les fichiers vont dans `screenshots/en-US` et dans les artefacts du workflow. fastlane envoie ensuite les textes, les captures et la classification d'âge, puis joint le dernier build TestFlight déjà traité à la version 1.0.0.
+Il prend les captures sur le simulateur : iPhone grand écran (6,9 pouces), iPhone avec Dynamic Island de taille moyenne, et iPad 13 pouces. Les captures utilisent des pages enregistrées dans l'app, pas le réseau. L'app reste universelle. Les fichiers vont dans `screenshots/en-US` et dans les artefacts du workflow. fastlane envoie ensuite les textes, les captures et la classification d'âge, puis joint le dernier build TestFlight déjà traité à la version 1.0.0.
 
 Le nom essayé est **Zoix.ai**. S'il est pris, le workflow enregistre **Zoix.ai - Adaptive Philosophy**. Les textes sont dans `fastlane/metadata`. La catégorie principale est Éducation. La catégorie secondaire est Actualités. L'accès web n'est pas limité à un seul site, donc la classification calculée n'est pas 4+. Le détail est dans [`docs/app-store-manual-steps.md`](docs/app-store-manual-steps.md).
 
@@ -102,7 +102,7 @@ Les pages publiques sont [`docs/privacy.html`](docs/privacy.html) et [`docs/supp
 
 **English:** [`.github/workflows/appstore.yml`](.github/workflows/appstore.yml) is run by hand. It does not run on a pull request. By default it does not submit the app for review.
 
-It captures the simulator: the 6.9-inch iPhone, the medium Dynamic Island iPhone, and the 13-inch iPad. The app stays universal. The files go to `screenshots/en-US` and to the workflow artifacts. fastlane then uploads the text, the screenshots, and the age rating, and attaches the latest processed TestFlight build to version 1.0.0.
+It captures the simulator: the 6.9-inch iPhone, the medium Dynamic Island iPhone, and the 13-inch iPad. The captures use pages saved in the app, not the network. The app stays universal. The files go to `screenshots/en-US` and to the workflow artifacts. fastlane then uploads the text, the screenshots, and the age rating, and attaches the latest processed TestFlight build to version 1.0.0.
 
 The name tried first is **Zoix.ai**. If that name is taken, the workflow saves **Zoix.ai - Adaptive Philosophy**. The text is in `fastlane/metadata`. The primary category is Education. The secondary category is News. Web access is not limited to one site, so the calculated rating is not 4+. The detail is in [`docs/app-store-manual-steps.md`](docs/app-store-manual-steps.md).
 

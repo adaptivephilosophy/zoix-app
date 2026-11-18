@@ -37,8 +37,15 @@ final class HomeBrowser: ObservableObject {
     }
 
     /// Loads https://zoix.ai. Does nothing when that page is already showing.
+    /// Screenshot runs load a bundled page instead, so the capture does not wait on the network.
     func goHome() {
         guard let webView else { return }
+        if ScreenshotSample.isEnabled {
+            errorMessage = nil
+            isLoading = true
+            webView.loadHTMLString(ScreenshotSample.homeHTML, baseURL: AppLinks.homePage)
+            return
+        }
         if let url = webView.url, AppLinks.isHomepage(url) {
             return
         }
@@ -49,6 +56,10 @@ final class HomeBrowser: ObservableObject {
 
     func reload() {
         guard let webView else { return }
+        if ScreenshotSample.isEnabled {
+            goHome()
+            return
+        }
         errorMessage = nil
         isLoading = true
         if webView.url == nil {
