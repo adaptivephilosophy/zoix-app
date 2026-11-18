@@ -9,9 +9,12 @@ on:
 permissions:
   contents: read
 
+# Do not cancel a queued macOS job when another workflow is using the
+# runner. The 18 November 2026 run on main was cancelled while still
+# waiting for a runner; it never executed a test.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   metadata:

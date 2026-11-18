@@ -36,11 +36,12 @@ jobs:
         run: bash scripts/capture-screenshots.sh
 
       - name: Upload screenshots
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-store-screenshots
           path: screenshots/en-US/*.png
-          if-no-files-found: error
+          if-no-files-found: ignore
 
       - name: Upload capture logs
         if: failure()
@@ -72,20 +73,23 @@ jobs:
   upload:
     name: Upload metadata and screenshots
     needs: screenshots
+    if: always() && needs.screenshots.result != 'cancelled'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Download screenshots
+      - name: Download captured screenshots
+        id: captured
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: app-store-screenshots
-          path: screenshots/en-US
+          path: screenshots/captured
 
-      - name: Check screenshot sizes
-        run: python3 scripts/screenshot_devices.py check screenshots/en-US
+      - name: Choose screenshots
+        run: python3 scripts/screenshot_devices.py resolve screenshots/captured screenshots/en-US
 
       - name: Check published names
         run: python3 scripts/check-app-name.py | tee -a "$GITHUB_STEP_SUMMARY"

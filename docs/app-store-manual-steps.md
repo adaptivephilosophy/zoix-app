@@ -11,11 +11,13 @@ Checked 18 November 2026 against the app source, https://zoix.ai, and the public
 - Store name `Zoix.ai`. If Apple says that name is taken, the lane saves `Zoix.ai - Adaptive Philosophy` (29 characters).
 - Subtitle, promotional text, description, keywords, What's New, support URL, marketing URL `https://zoix.ai`, privacy URL, and copyright `2026 Adaptive Philosophy Foundation`.
 - Primary category Education. Secondary category News.
-- Age-rating answers in `fastlane/metadata/age_rating.json`.
-- Screenshots for the 6.9-inch iPhone, the medium Dynamic Island iPhone, and the 13-inch iPad.
-- The latest processed build whose train is 1.0.0, when one exists.
+- Age-rating answers in `fastlane/metadata/age_rating.json`. Unrestricted web access is true, so the calculated rating is 16+ on the current scale and 17+ on the older one.
+- Screenshots for the 6.9-inch iPhone, the medium Dynamic Island iPhone, and the 13-inch iPad. The capture uses bundled sample pages, not the live network. If capture fails, the upload uses screenshots already committed under `screenshots/en-US` when those files match the required sizes.
+- The latest processed build whose train is 1.0.0, when one exists. That build is marked `usesNonExemptEncryption` false. The app already sets `ITSAppUsesNonExemptEncryption` to false.
 - Content rights set to third-party content, because Mot du jour reads Transparent Language's public widget feed.
-- Review contact name and email. There is no phone number in the repo.
+- Price Free, with the USA price as the base, and availability in every territory the API returns.
+- Review contact Daniel Boice, DanBoice@adaptivephilosophy.foundation. The phone number is not known, so the lane does not write one and does not clear one that is already there.
+- When `submit` is on, a preflight lists anything still missing and stops before review if price, availability, a processed build, screenshots, App Privacy, or the review phone are not in place. The failure text is the App Store Connect reason.
 
 `ITSAppUsesNonExemptEncryption` is already `NO` on both the Debug and Release app configurations. The app uses only standard HTTPS. A separate Info.plist file is not used; Xcode generates the key.
 
@@ -46,11 +48,11 @@ Do not describe the foundation as a 501(c)(3) or as tax-exempt. The listing call
 
 ## 4. Pricing and availability
 
-This lane does not change price or countries. In App Store Connect, set the price to Free and choose the territories. New apps are often free in all territories already. Confirm that before submit.
+The lane sets the price to Free from the USA price point and turns on every territory the API returns, including territories added later. If that call fails, the preflight names the error and, when `submit` is on, stops before review. Confirm the price and the country list in App Store Connect if the summary says they were not changed.
 
 ## 5. App Privacy
 
-Answer **Data Not Collected**, then publish the answers. The nutrition-label screen is still a website step. The privacy manifest in the app already says the same thing: no tracking, no collected data types, and no required-reason API.
+The lane tries to publish **Data Not Collected** when no data types are declared. If the summary says that publish did not stick, answer **Data Not Collected** on the App Privacy screen and publish it. The privacy manifest in the app already says the same thing: no tracking, no collected data types, and no required-reason API. With `submit` on, an unpublished privacy label stops the workflow before review.
 
 Recommended answers, from the code as of 18 November 2026:
 
@@ -109,7 +111,7 @@ If the goal is a 4+ rating, two things have to change first: the Home web view n
 
 ## 7. Phone number for App Review
 
-The review contact email is DanBoice@adaptivephilosophy.foundation. The repo does not contain a phone number, and one should not be invented. Before submit, add a phone number on the App Review Information page. It is not shown on the public product page.
+The lane writes the review contact as Daniel Boice, DanBoice@adaptivephilosophy.foundation. It does not invent a phone number, and it does not clear a phone number that is already stored. Before submit, add a phone number on the App Review Information page if the preflight says it is missing. It is not shown on the public product page. With `submit` on, a missing phone stops the workflow before review.
 
 ## 8. Encryption banner
 

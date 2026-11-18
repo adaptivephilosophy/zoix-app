@@ -30,8 +30,22 @@ struct RootView: View {
         }
         .tint(ZoixPalette.primaryText)
         .preferredColorScheme(screenshotDark ? .dark : nil)
-        .task { await words.load() }
-        .task { await articles.loadCachedThenRefresh() }
+        .task {
+            if ScreenshotSample.isEnabled {
+                words.showSample()
+                articles.showSample()
+            }
+        }
+        .task {
+            if !ScreenshotSample.isEnabled {
+                await words.load()
+            }
+        }
+        .task {
+            if !ScreenshotSample.isEnabled {
+                await articles.loadCachedThenRefresh()
+            }
+        }
     }
 
     /// Screenshot runs pass this argument so the navy field is showing.

@@ -135,15 +135,47 @@ def check(directory: Path):
         sys.exit(1)
 
 
+def directory_is_valid(directory: Path) -> bool:
+    if not directory.is_dir():
+        return False
+    completed = subprocess.run([sys.executable, str(Path(__file__)), "check", str(directory)])
+    return completed.returncode == 0
+
+
+def resolve(captured: Path, committed: Path):
+    if directory_is_valid(captured):
+        committed.mkdir(parents=True, exist_ok=True)
+        for slot in ACCEPTED:
+            for slug in SLUGS:
+                name = f"{slot}-{slug}.png"
+                target = committed / name
+                source = captured / name
+                target.write_bytes(source.read_bytes())
+        print(f"Using screenshots captured in this run ({captured}).")
+        return
+    if directory_is_valid(committed):
+        print(f"Capture did not produce a full set. Using screenshots already in {committed}.")
+        return
+    sys.exit(
+        "No App Store screenshots are available. "
+        "Capture failed, and screenshots/en-US has no full set of the required sizes."
+    )
+
+
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("select", "check"):
-        sys.exit("usage: screenshot_devices.py select | check <directory>")
+    if len(sys.argv) < 2 or sys.argv[1] not in ("select", "check", "resolve"):
+        sys.exit("usage: screenshot_devices.py select | check <directory> | resolve <captured> <committed>")
     if sys.argv[1] == "select":
         select()
         return
-    if len(sys.argv) != 3:
-        sys.exit("usage: screenshot_devices.py check <directory>")
-    check(Path(sys.argv[2]))
+    if sys.argv[1] == "check":
+        if len(sys.argv) != 3:
+            sys.exit("usage: screenshot_devices.py check <directory>")
+        check(Path(sys.argv[2]))
+        return
+    if len(sys.argv) != 4:
+        sys.exit("usage: screenshot_devices.py resolve <captured> <committed>")
+    resolve(Path(sys.argv[2]), Path(sys.argv[3]))
 
 
 if __name__ == "__main__":

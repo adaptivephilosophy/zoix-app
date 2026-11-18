@@ -82,6 +82,15 @@ final class ArticleLogicTests: XCTestCase {
         XCTAssertEqual(ArticleQuery.tags(in: articles), ["News", "Philosophy", "public"])
     }
 
+    func testScreenshotSampleIsOffline() {
+        XCTAssertFalse(ScreenshotSample.isEnabled)
+        XCTAssertEqual(ScreenshotSample.argument, "-ZoixScreenshotSample")
+        let articles = ScreenshotSample.articles()
+        XCTAssertEqual(articles.count, 3)
+        XCTAssertTrue(articles.allSatisfy { $0.url.scheme == "https" })
+        XCTAssertFalse(ScreenshotSample.homeHTML.isEmpty)
+    }
+
     func testKnownLinks() {
         XCTAssertEqual(AppLinks.homePage.absoluteString, "https://zoix.ai")
         XCTAssertEqual(AppLinks.articlesFeed.absoluteString, "https://ap-notion-articles.vercel.app/api/articles")
