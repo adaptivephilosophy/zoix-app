@@ -4,12 +4,10 @@ import WebKit
 
 /// Home tab: zoix.ai in a web view. Giving and payment links leave the app.
 struct HomeWebView: UIViewRepresentable {
-    var reloadToken: Int
-    @Binding var isLoading: Bool
-    @Binding var errorMessage: String?
+    @ObservedObject var browser: HomeBrowser
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(isLoading: $isLoading, errorMessage: $errorMessage, reloadToken: reloadToken)
+        Coordinator(browser: browser)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -24,57 +22,37 @@ struct HomeWebView: UIViewRepresentable {
         #if DEBUG
         webView.isInspectable = true
         #endif
-        context.coordinator.webView = webView
-        context.coordinator.loadHome()
+        context.coordinator.browser = browser
+        browser.attach(webView)
+        if webView.url == nil {
+            browser.goHome()
+        }
         return webView
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        context.coordinator.isLoading = $isLoading
-        context.coordinator.errorMessage = $errorMessage
-        if context.coordinator.lastReloadToken != reloadToken {
-            context.coordinator.lastReloadToken = reloadToken
-            context.coordinator.reload()
-        }
+        context.coordinator.browser = browser
+        browser.attach(uiView)
+        uiView.allowsBackForwardNavigationGestures = true
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
-        var isLoading: Binding<Bool>
-        var errorMessage: Binding<String?>
-        var lastReloadToken: Int
-        weak var webView: WKWebView?
+        var browser: HomeBrowser
 
-        init(isLoading: Binding<Bool>, errorMessage: Binding<String?>, reloadToken: Int) {
-            self.isLoading = isLoading
-            self.errorMessage = errorMessage
-            self.lastReloadToken = reloadToken
-        }
-
-        func loadHome() {
-            guard let webView else { return }
-            errorMessage.wrappedValue = nil
-            isLoading.wrappedValue = true
-            webView.load(URLRequest(url: AppLinks.homePage))
-        }
-
-        func reload() {
-            guard let webView else { return }
-            errorMessage.wrappedValue = nil
-            isLoading.wrappedValue = true
-            if webView.url == nil {
-                webView.load(URLRequest(url: AppLinks.homePage))
-            } else {
-                webView.reload()
-            }
+        init(browser: HomeBrowser) {
+            self.browser = browser
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            isLoading.wrappedValue = true
+            browser.errorMessage = nil
+            browser.isLoading = true
+            browser.syncNavigationState()
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            isLoading.wrappedValue = false
-            errorMessage.wrappedValue = nil
+            browser.isLoading = false
+            browser.errorMessage = nil
+            browser.syncNavigationState()
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -106,6 +84,7 @@ struct HomeWebView: UIViewRepresentable {
         }
 
         /// `target="_blank"` links (the homepage uses them for gifts and articles).
+        /// Loading them here keeps them in this web view, so Back can return.
         func webView(
             _ webView: WKWebView,
             createWebViewWith configuration: WKWebViewConfiguration,
@@ -127,10 +106,12 @@ struct HomeWebView: UIViewRepresentable {
         private func handle(_ error: Error) {
             let nsError = error as NSError
             if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                browser.syncNavigationState()
                 return
             }
-            isLoading.wrappedValue = false
-            errorMessage.wrappedValue = "Check the connection and try again."
+            browser.isLoading = false
+            browser.errorMessage = "Check the connection and try again."
+            browser.syncNavigationState()
         }
     }
 }

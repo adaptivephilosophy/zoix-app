@@ -21,6 +21,7 @@ struct UpdatesView: View {
                 .navigationTitle("Updates")
                 .searchable(text: $search, prompt: "Search title or tag")
                 .donateButton()
+                .zoixScreen()
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
                         sortButton
@@ -64,7 +65,8 @@ struct UpdatesView: View {
                 Section {
                     Text(message)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ZoixPalette.primaryText)
+                        .listRowBackground(ZoixPalette.background)
                 }
             }
             if let tag {
@@ -72,6 +74,8 @@ struct UpdatesView: View {
                     Button("Clear tag: \(tag)") {
                         self.tag = nil
                     }
+                    .foregroundStyle(ZoixPalette.primaryText)
+                    .listRowBackground(ZoixPalette.background)
                 }
             }
             Section {
@@ -82,18 +86,25 @@ struct UpdatesView: View {
                         ArticleRow(article: article)
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(ZoixPalette.background)
                     .accessibilityHint("Opens the page in the app")
                 }
             } header: {
                 Text("\(visible.count) of \(store.articles.count)")
+                    .foregroundStyle(ZoixPalette.primaryText)
             } footer: {
                 if let generatedAt = store.generatedAt {
                     Text("Feed generated \(ArticleDateFormat.string(from: generatedAt)). Sorted by last updated.")
+                        .foregroundStyle(ZoixPalette.primaryText)
                 } else {
                     Text("Sorted by last updated.")
+                        .foregroundStyle(ZoixPalette.primaryText)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(ZoixPalette.background)
+        .listRowSeparatorTint(ZoixPalette.cardBorder)
     }
 
     private var sortButton: some View {
@@ -126,24 +137,25 @@ private struct ArticleRow: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(article.title)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(ZoixPalette.primaryText)
                 .multilineTextAlignment(.leading)
             HStack(spacing: 8) {
                 if !article.kind.isEmpty {
                     Text(article.kind)
                         .font(.caption.weight(.semibold))
+                        .foregroundStyle(ZoixPalette.primaryText)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(.quaternary, in: Capsule())
                 }
                 Text("Updated \(ArticleDateFormat.string(from: article.lastEdited))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ZoixPalette.primaryText)
             }
             if !article.tags.isEmpty {
                 Text(article.tags.prefix(4).joined(separator: " · "))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ZoixPalette.primaryText)
                     .lineLimit(2)
             }
         }

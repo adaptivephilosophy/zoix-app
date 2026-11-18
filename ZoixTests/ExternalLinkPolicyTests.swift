@@ -43,6 +43,28 @@ final class ExternalLinkPolicyTests: XCTestCase {
         XCTAssertEqual(ExternalLinkPolicy.decision(for: URL(string: "zoix://home")!), .cancel)
     }
 
+    func testHomepageIsOnlyTheZoixFrontPage() {
+        let home = [
+            "https://zoix.ai",
+            "https://zoix.ai/",
+            "https://www.zoix.ai",
+            "https://www.zoix.ai/",
+            "http://zoix.ai"
+        ]
+        for raw in home {
+            XCTAssertTrue(AppLinks.isHomepage(URL(string: raw)!), raw)
+        }
+        let elsewhere = [
+            "https://zoix.ai/connect",
+            "https://zoix.ai/fund",
+            "https://adaptivephilosophy.notion.site",
+            "https://example.com"
+        ]
+        for raw in elsewhere {
+            XCTAssertFalse(AppLinks.isHomepage(URL(string: raw)!), raw)
+        }
+    }
+
     func testLookalikeHostsAreNotPaymentHosts() {
         XCTAssertEqual(ExternalLinkPolicy.decision(for: URL(string: "https://notpaypal.com/hello")!), .loadInWebView)
         XCTAssertEqual(ExternalLinkPolicy.decision(for: URL(string: "https://stripe.com.example/pay")!), .loadInWebView)

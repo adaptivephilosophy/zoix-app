@@ -1,77 +1,130 @@
 import SwiftUI
 
 struct HomeView: View {
+    @ObservedObject var browser: HomeBrowser
     var words: WordOfTheDayStore
     @Binding var tab: AppTab
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var reloadToken = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                wordStrip
+                browserBar
                 ZStack {
-                    HomeWebView(
-                        reloadToken: reloadToken,
-                        isLoading: $isLoading,
-                        errorMessage: $errorMessage
-                    )
-                    if let errorMessage {
+                    HomeWebView(browser: browser)
+                    if let errorMessage = browser.errorMessage {
                         errorPane(errorMessage)
-                    } else if isLoading {
+                    } else if browser.isLoading {
                         ProgressView("Loading zoix.ai")
                             .padding(12)
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
+                wordLine
             }
-            .background(Color(red: 0.09, green: 0.09, blue: 0.11))
             .navigationTitle("Zoix")
             .navigationBarTitleDisplayMode(.inline)
             .donateButton()
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        reloadToken += 1
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .accessibilityLabel("Reload homepage")
-                }
-            }
+            .zoixScreen()
         }
     }
 
-    private var wordStrip: some View {
+    private var browserBar: some View {
+        HStack(spacing: 4) {
+            barButton("chevron.backward", label: "Back", enabled: browser.canGoBack) {
+                browser.goBack()
+            }
+            barButton("chevron.forward", label: "Forward", enabled: browser.canGoForward) {
+                browser.goForward()
+            }
+            Button {
+                browser.goHome()
+            } label: {
+                Label("Home", systemImage: "house")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ZoixPalette.navy)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(ZoixPalette.cyan, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Returns to zoix.ai")
+            Spacer(minLength: 8)
+            barButton("arrow.clockwise", label: "Reload", enabled: true) {
+                browser.reload()
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(ZoixPalette.background)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(ZoixPalette.cardBorder)
+                .frame(height: 1)
+        }
+    }
+
+    private func barButton(
+        _ symbol: String,
+        label: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(ZoixPalette.primaryText)
+                .frame(width: 44, height: 36)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+    }
+
+    /// One line under the page, so the site keeps the screen.
+    private var wordLine: some View {
         Button {
             tab = .word
         } label: {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Mot du jour")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(words.word.french)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(words.word.english)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
+            HStack(spacing: 6) {
+                Text("Mot du jour")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(colorScheme == .light ? ZoixPalette.navy : ZoixPalette.cyan)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background {
+                        if colorScheme == .light {
+                            Capsule().fill(ZoixPalette.cyan)
+                        }
+                    }
+                    .layoutPriority(1)
+                Text(words.word.french)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ZoixPalette.primaryText)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+                Text("·")
+                    .font(.subheadline)
+                    .foregroundStyle(ZoixPalette.primaryText)
+                Text(words.word.english)
+                    .font(.subheadline)
+                    .foregroundStyle(ZoixPalette.primaryText)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
                 Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(ZoixPalette.primaryText)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(ZoixPalette.background)
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(ZoixPalette.cardBorder)
+                .frame(height: 1)
+        }
         .accessibilityLabel("Word of the day, \(words.word.french), \(words.word.english)")
         .accessibilityHint("Opens the word of the day")
     }
@@ -80,22 +133,25 @@ struct HomeView: View {
         VStack(spacing: 12) {
             Image(systemName: "wifi.exclamationmark")
                 .font(.largeTitle)
+                .foregroundStyle(ZoixPalette.primaryText)
             Text("zoix.ai did not load")
                 .font(.headline)
+                .foregroundStyle(ZoixPalette.primaryText)
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(ZoixPalette.primaryText)
                 .multilineTextAlignment(.center)
             Button("Try again") {
-                reloadToken += 1
+                browser.reload()
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(ZoixFillButtonStyle())
             Button("Open in Safari") {
                 SafariOpener.open(AppLinks.homePage)
             }
+            .foregroundStyle(ZoixPalette.primaryText)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.background)
+        .background(ZoixPalette.background)
     }
 }

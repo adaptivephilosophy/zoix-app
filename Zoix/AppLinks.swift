@@ -5,6 +5,17 @@ enum AppLinks {
     /// Homepage shown in the Home tab.
     static let homePage = URL(string: "https://zoix.ai")!
 
+    /// True for the zoix.ai front page, including `www` and a trailing slash.
+    /// Other paths, such as `/connect`, are not the homepage.
+    static func isHomepage(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased() ?? ""
+        guard scheme == "https" || scheme == "http" else { return false }
+        let host = url.host?.lowercased() ?? ""
+        guard host == "zoix.ai" || host == "www.zoix.ai" else { return false }
+        let path = url.path
+        return path.isEmpty || path == "/"
+    }
+
     /// Public articles JSON used by https://zoix.ai.
     /// The site reads `NEXT_PUBLIC_ARTICLES_API` and falls back to this URL.
     /// Checked 18 November 2026: one response, about 532 items, each with
