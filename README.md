@@ -90,6 +90,24 @@ The build number is `run number × 100 + attempt`. A new run gets a higher numbe
 
 To check signing without uploading, run the workflow by hand and turn **upload** off.
 
+## App Store
+
+**Français :** Le workflow [`.github/workflows/appstore.yml`](.github/workflows/appstore.yml) se lance à la main. Il ne part pas sur une pull request. Par défaut, il n'envoie pas l'app en revue.
+
+Il prend les captures sur le simulateur : iPhone grand écran (6,9 pouces), iPhone avec Dynamic Island de taille moyenne, et iPad 13 pouces. L'app reste universelle. Les fichiers vont dans `screenshots/en-US` et dans les artefacts du workflow. fastlane envoie ensuite les textes, les captures et la classification d'âge, puis joint le dernier build TestFlight déjà traité à la version 1.0.0.
+
+Le nom essayé est **Zoix.ai**. S'il est pris, le workflow enregistre **Zoix.ai - Adaptive Philosophy**. Les textes sont dans `fastlane/metadata`. La catégorie principale est Éducation. La catégorie secondaire est Actualités. L'accès web n'est pas limité à un seul site, donc la classification calculée n'est pas 4+. Le détail est dans [`docs/app-store-manual-steps.md`](docs/app-store-manual-steps.md).
+
+Les pages publiques sont [`docs/privacy.html`](docs/privacy.html) et [`docs/support.html`](docs/support.html). GitHub Pages les sert après activation du site : `https://adaptivephilosophy.github.io/zoix-app/privacy.html` et `https://adaptivephilosophy.github.io/zoix-app/support.html`.
+
+**English:** [`.github/workflows/appstore.yml`](.github/workflows/appstore.yml) is run by hand. It does not run on a pull request. By default it does not submit the app for review.
+
+It captures the simulator: the 6.9-inch iPhone, the medium Dynamic Island iPhone, and the 13-inch iPad. The app stays universal. The files go to `screenshots/en-US` and to the workflow artifacts. fastlane then uploads the text, the screenshots, and the age rating, and attaches the latest processed TestFlight build to version 1.0.0.
+
+The name tried first is **Zoix.ai**. If that name is taken, the workflow saves **Zoix.ai - Adaptive Philosophy**. The text is in `fastlane/metadata`. The primary category is Education. The secondary category is News. Web access is not limited to one site, so the calculated rating is not 4+. The detail is in [`docs/app-store-manual-steps.md`](docs/app-store-manual-steps.md).
+
+The public pages are [`docs/privacy.html`](docs/privacy.html) and [`docs/support.html`](docs/support.html). GitHub Pages serves them after the site is turned on: `https://adaptivephilosophy.github.io/zoix-app/privacy.html` and `https://adaptivephilosophy.github.io/zoix-app/support.html`.
+
 ## Étapes qui restent au propriétaire / Steps only the owner can do
 
 **Français :** Le premier envoi TestFlight échoue tant que ces étapes ne sont pas faites. Le workflow ne les invente pas.
@@ -98,9 +116,9 @@ To check signing without uploading, run the workflow by hand and turn **upload**
 2. Dans le dépôt GitHub : Settings → Secrets and variables → Actions. Créer `APPLE_TEAM_ID` avec les 10 caractères indiqués sur [developer.apple.com/account](https://developer.apple.com/account) (Membership details). Une variable ou un secret convient. Le secret déjà ajouté suffit.
 3. Vérifier que `ASC_KEY_ID`, `ASC_ISSUER_ID` et `ASC_KEY_P8` sont présents et non expirés. La clé a le rôle **Admin** (accès aux certificats et aux profils). Un rôle App Manager peut envoyer un build, mais ne peut en général pas créer le certificat de distribution. La signature dans le nuage a besoin de ce droit. `ASC_KEY_P8` est le texte PEM du fichier `.p8`, pas une version encodée sans les lignes BEGIN / END.
 4. Enregistrer l'App ID explicite `ai.zoix.app`, sans capacité supplémentaire (pas de notifications, pas d'achats intégrés, pas de domaines associés). La première archive peut le créer si la clé y est autorisée. Sinon, le créer dans Certificates, Identifiers & Profiles.
-5. Dans App Store Connect, créer la fiche de l'app : nom **Zoix**, bundle ID **ai.zoix.app**, SKU **zoix-ios**, langue principale anglais. L'envoi est refusé si cette fiche n'existe pas. Cette création reste manuelle.
+5. Dans App Store Connect, la fiche `ai.zoix.app` doit exister (SKU **zoix-ios**, langue principale anglais). Le workflow App Store enregistre le nom public **Zoix.ai**, ou **Zoix.ai - Adaptive Philosophy** si le premier est pris. La création de la fiche, si elle manque, reste manuelle.
 6. Accepter le contrat Free Apps (Agreements, Tax, and Banking). Le contrat Paid Apps n'est pas nécessaire : l'app est gratuite et n'a pas d'achat intégré. Ne pas décrire la fondation comme une organisation 501(c)(3) ni comme exonérée d'impôt dans la fiche, les captures ou les notes de revue. La reconnaissance IRS est en attente.
-7. Confidentialité de l'app : répondre **Data Not Collected**. URL de politique : la page publique de [`docs/privacy.md`](docs/privacy.md) une fois ce fichier sur `main`, par exemple `https://github.com/adaptivephilosophy/zoix-app/blob/main/docs/privacy.md`. Chiffrement : l'app n'utilise que HTTPS standard et déclare `ITSAppUsesNonExemptEncryption` à faux. Si App Store Connect pose encore la question, répondre que l'app n'utilise pas de chiffrement non exempté.
+7. Confidentialité de l'app : répondre **Data Not Collected**. URL de politique : `https://adaptivephilosophy.github.io/zoix-app/privacy.html` ([`docs/privacy.html`](docs/privacy.html)), une fois GitHub Pages activé sur `main` / `docs`. Chiffrement : l'app n'utilise que HTTPS standard et déclare `ITSAppUsesNonExemptEncryption` à faux. Si App Store Connect pose encore la question, répondre que l'app n'utilise pas de chiffrement non exempté. La classification d'âge n'est pas 4+ : voir [`docs/app-store-manual-steps.md`](docs/app-store-manual-steps.md).
 8. L'essayeur interne doit être un utilisateur App Store Connect. Installer TestFlight sur l'appareil et accepter l'invitation après le traitement du build. Les essayeurs internes n'ont pas besoin de la revue Beta. Les essayeurs externes, si.
 9. Quand les points 1 à 7 sont faits, lancer Actions → TestFlight sur la branche `main`. On peut d'abord décocher upload pour vérifier la signature, puis relancer avec l'envoi. Ne pas relancer la même exécution en espérant un nouveau numéro : lancer une nouvelle exécution.
 10. L'icône d'accueil est l'arbre central du logo, sans texte, dans `Zoix/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (1024×1024, sans transparence). `scripts/generate-app-icon.py` la reconstruit à partir de `scripts/brand/adaptive-philosophy-logo.png`.
@@ -113,9 +131,9 @@ Contact public, si la fiche en a besoin : DanBoice@adaptivephilosophy.foundation
 2. In the GitHub repository: Settings → Secrets and variables → Actions. Create `APPLE_TEAM_ID` with the 10 characters shown at [developer.apple.com/account](https://developer.apple.com/account) (Membership details). A variable or a secret works. The secret that is already there is enough.
 3. Confirm `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_KEY_P8` are present and not expired. The key needs the **Admin** role (access to certificates and profiles). An App Manager key can upload a build, but usually cannot create the distribution certificate. Cloud signing needs that access. `ASC_KEY_P8` is the PEM text of the `.p8` file, not a copy that dropped the BEGIN / END lines.
 4. Register the explicit App ID `ai.zoix.app`, with no extra capabilities (no push, no in-app purchase, no associated domains). The first archive may create it if the key is allowed to. Otherwise create it in Certificates, Identifiers & Profiles.
-5. In App Store Connect, create the app record: name **Zoix**, bundle ID **ai.zoix.app**, SKU **zoix-ios**, primary language English. The upload is rejected if this record does not exist. Creating it stays a manual step.
+5. In App Store Connect, the `ai.zoix.app` record must exist (SKU **zoix-ios**, primary language English). The App Store workflow saves the public name **Zoix.ai**, or **Zoix.ai - Adaptive Philosophy** if the first name is taken. Creating the record, if it is missing, stays a manual step.
 6. Accept the Free Apps agreement (Agreements, Tax, and Banking). The Paid Apps agreement is not required: the app is free and has no in-app purchase. Do not describe the foundation as a 501(c)(3) or as tax-exempt in the listing, screenshots, or review notes. IRS recognition is pending.
-7. App Privacy: answer **Data Not Collected**. Privacy policy URL: the public page for [`docs/privacy.md`](docs/privacy.md) once that file is on `main`, for example `https://github.com/adaptivephilosophy/zoix-app/blob/main/docs/privacy.md`. Encryption: the app uses only standard HTTPS and sets `ITSAppUsesNonExemptEncryption` to false. If App Store Connect still asks, answer that the app does not use non-exempt encryption.
+7. App Privacy: answer **Data Not Collected**. Privacy policy URL: `https://adaptivephilosophy.github.io/zoix-app/privacy.html` ([`docs/privacy.html`](docs/privacy.html)), once GitHub Pages is turned on for `main` / `docs`. Encryption: the app uses only standard HTTPS and sets `ITSAppUsesNonExemptEncryption` to false. If App Store Connect still asks, answer that the app does not use non-exempt encryption. The age rating is not 4+: see [`docs/app-store-manual-steps.md`](docs/app-store-manual-steps.md).
 8. The internal tester must be an App Store Connect user. Install TestFlight on the device and accept the invite after the build finishes processing. Internal testers do not need Beta App Review. External testers do.
 9. When steps 1 through 7 are done, run Actions → TestFlight on the `main` branch. Turn upload off first if you want to confirm signing, then run again with upload on. Do not re-run the same run and expect a new build number: start a new run.
 10. The home-screen icon is the logo's central tree, with no text, in `Zoix/Assets.xcassets/AppIcon.appiconset/AppIcon.png` (1024×1024, no transparency). `scripts/generate-app-icon.py` rebuilds it from `scripts/brand/adaptive-philosophy-logo.png`.
@@ -124,9 +142,9 @@ Public contact, if the listing needs one: DanBoice@adaptivephilosophy.foundation
 
 ## Vie privée / Privacy
 
-**Français :** [`docs/privacy.md`](docs/privacy.md). L'application ne collecte pas de données personnelles. Les dons passent par PayPal ou Stripe, dans Safari.
+**Français :** [`docs/privacy.md`](docs/privacy.md) et la page publique [`docs/privacy.html`](docs/privacy.html). L'application ne collecte pas de données personnelles. Les dons passent par PayPal ou Stripe, dans Safari.
 
-**English:** [`docs/privacy.md`](docs/privacy.md). The app does not collect personal data. Gifts go through PayPal or Stripe, in Safari.
+**English:** [`docs/privacy.md`](docs/privacy.md) and the public page [`docs/privacy.html`](docs/privacy.html). The app does not collect personal data. Gifts go through PayPal or Stripe, in Safari.
 
 ## Mot du jour / Word of the day
 

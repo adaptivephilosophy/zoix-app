@@ -1,0 +1,1 @@
+First release of Zoix for iPhone and iPad. Home shows zoix.ai, Updates lists the foundation's public articles, and Mot du jour shows a French word.

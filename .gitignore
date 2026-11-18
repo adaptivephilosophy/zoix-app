@@ -11,3 +11,9 @@ xcuserdata/
 *.dSYM.zip
 private_keys/
 *.p8
+fastlane/report.xml
+fastlane/README.html
+fastlane/Preview.html
+fastlane/api_key.json
+vendor/bundle
+.bundle

@@ -1,0 +1,13 @@
+Zoix is the free iOS app of the Adaptive Philosophy Foundation, a Washington nonprofit corporation. It brings the foundation's public site, its article list, and a French word of the day to iPhone and iPad.
+
+Home shows zoix.ai. Back, forward, reload, and Home move through that site and return to the front page. A line under the page shows the French word of the day.
+
+Updates is a native list of the public articles used by zoix.ai. Search by title or tag, filter by tag, and sort by the last update. An article opens inside the app. The last list that loaded stays on the device when the network is unavailable.
+
+Mot du jour shows one French word and its English meaning. The app requests Transparent Language's public word-of-the-day feed first. If that feed does not answer, the app shows a word from a list kept in the app. The saved word changes at midnight, Pacific Time.
+
+Donate opens the foundation's giving page in Safari, outside the app. Zoix does not see card numbers, does not process payments, and does not issue tax receipts.
+
+There is no account. The app does not include advertising or an analytics kit.
+
+Questions: DanBoice@adaptivephilosophy.foundation

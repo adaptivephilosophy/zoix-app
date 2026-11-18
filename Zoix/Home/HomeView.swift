@@ -20,6 +20,11 @@ struct HomeView: View {
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier(homeStatusIdentifier)
+                .overlay(alignment: .topLeading) {
+                    statusMarker(homeStatusIdentifier)
+                }
                 wordLine
             }
             .navigationTitle("Zoix")
@@ -27,6 +32,25 @@ struct HomeView: View {
             .donateButton()
             .zoixScreen()
         }
+    }
+
+    private func statusMarker(_ identifier: String) -> some View {
+        Color.clear
+            .frame(width: 4, height: 4)
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier(identifier)
+            .accessibilityLabel(identifier)
+            .allowsHitTesting(false)
+    }
+
+    private var homeStatusIdentifier: String {
+        if browser.errorMessage != nil {
+            return "home-error"
+        }
+        if browser.isLoading {
+            return "home-loading"
+        }
+        return "home-ready"
     }
 
     private var browserBar: some View {

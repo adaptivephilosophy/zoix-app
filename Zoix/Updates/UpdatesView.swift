@@ -18,6 +18,16 @@ struct UpdatesView: View {
     var body: some View {
         NavigationStack {
             content
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier(store.articles.isEmpty ? "updates-pending" : "updates-ready")
+                .overlay(alignment: .topLeading) {
+                    Color.clear
+                        .frame(width: 4, height: 4)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityIdentifier(store.articles.isEmpty ? "updates-pending" : "updates-ready")
+                        .accessibilityLabel(store.articles.isEmpty ? "updates-pending" : "updates-ready")
+                        .allowsHitTesting(false)
+                }
                 .navigationTitle("Updates")
                 .searchable(text: $search, prompt: "Search title or tag")
                 .donateButton()

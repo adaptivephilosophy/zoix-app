@@ -21,6 +21,14 @@ struct WordOfTheDayView: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .overlay(alignment: .topLeading) {
+                Color.clear
+                    .frame(width: 4, height: 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier("word-ready")
+                    .accessibilityLabel("word-ready")
+                    .allowsHitTesting(false)
+            }
             .navigationTitle("Mot du jour")
             .donateButton()
             .zoixScreen()
@@ -41,6 +49,7 @@ struct WordOfTheDayView: View {
                     .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(ZoixPalette.primaryText)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier(words.word.source == .liveFeed ? "word-live" : "word-bundled")
                 Text(words.word.english)
                     .font(.title3)
                     .foregroundStyle(ZoixPalette.primaryText)
@@ -69,6 +78,7 @@ struct WordOfTheDayView: View {
             .padding(16)
         }
         .background(ZoixPalette.background)
+        .accessibilityIdentifier("word-ready")
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay {
             RoundedRectangle(cornerRadius: 16)

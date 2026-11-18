@@ -1,0 +1,130 @@
+name: App Store metadata
+
+# Manual. Does not run on pull requests.
+# Reuses ASC_KEY_ID, ASC_ISSUER_ID, and ASC_KEY_P8. Adds no secrets.
+# submit stays off unless the run turns it on.
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: "Submit version 1.0.0 for App Store review. Leave this off until the manual App Store Connect steps are done."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: appstore-metadata
+  cancel-in-progress: false
+
+jobs:
+  screenshots:
+    name: Capture App Store screenshots
+    runs-on: macos-26
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Xcode
+        run: xcodebuild -version
+
+      - name: Capture screenshots
+        run: bash scripts/capture-screenshots.sh
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots
+          path: screenshots/en-US/*.png
+          if-no-files-found: error
+
+      - name: Upload capture logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-results
+          path: ${{ runner.temp }}/ZoixScreenshotResults
+          if-no-files-found: ignore
+
+      - name: Commit screenshots
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git config user.email "1483796+apsoftwaredev@users.noreply.github.com"
+          git config user.name "apsoftwaredev"
+          git add screenshots
+          if git diff --cached --quiet; then
+            echo "Screenshots are already committed."
+            exit 0
+          fi
+          git commit -m "Add App Store screenshots from the iOS Simulator."
+          if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+            echo "Pushed screenshots to ${GITHUB_REF_NAME}." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Could not push screenshots to ${GITHUB_REF_NAME}. They remain a workflow artifact." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+  upload:
+    name: Upload metadata and screenshots
+    needs: screenshots
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Download screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: app-store-screenshots
+          path: screenshots/en-US
+
+      - name: Check screenshot sizes
+        run: python3 scripts/screenshot_devices.py check screenshots/en-US
+
+      - name: Check published names
+        run: python3 scripts/check-app-name.py | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Check metadata text
+        run: python3 scripts/check-metadata.py
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install fastlane
+        run: bundle install --jobs 4
+
+      - name: Install App Store Connect API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          echo "::add-mask::$ASC_KEY_ID"
+          echo "::add-mask::$ASC_ISSUER_ID"
+          python3 scripts/install-asc-key.py
+
+      - name: Upload to App Store Connect
+        env:
+          SUBMIT: ${{ github.event.inputs.submit }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          FASTLANE_SKIP_UPDATE_CHECK: "1"
+          FASTLANE_HIDE_CHANGELOG: "1"
+          FASTLANE_DISABLE_COLORS: "1"
+        run: bundle exec fastlane ios upload_metadata
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf "${RUNNER_TEMP}/private_keys"
+
+      - name: GitHub Pages
+        if: always()
+        run: python3 scripts/enable-github-pages.py | tee -a "$GITHUB_STEP_SUMMARY"
